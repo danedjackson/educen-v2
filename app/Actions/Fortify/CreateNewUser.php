@@ -28,11 +28,11 @@ class CreateNewUser implements CreatesNewUsers
         return User::create([
             'name' => $input['name'],
             'email' => $input['email'],
-            'confirmed' => false,
-            'validated_at' => null,
-            'confirmed_at' => null,
+            'user_confirmed_at' => null,
             'email_verified_at' => null, 
             'password' => Hash::make($input['password']),
         ]);
+
+        //TODO: Send an email with a verification link and add verification logic to the app
     }
 }
