@@ -30,7 +30,7 @@ class CreateNewUser implements CreatesNewUsers
             'email' => $input['email'],
             'user_confirmed_at' => null,
             'email_verified_at' => null, 
-            'password' => Hash::make($input['password']),
+            'password' => $input['password'],
         ]);
 
         //TODO: Send an email with a verification link and add verification logic to the app
