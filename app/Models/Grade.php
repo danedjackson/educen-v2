@@ -5,23 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use App\Models\User;
 
-class Student extends Model
+class Grade extends Model
 {
     use HasFactory, HasUlids;
 
     protected $fillable = [
-        'firstname',
-        'middlename',
-        'lastname',
-        'dob',
-        'contact_number',
-        'address',
-        'email',
+        'name',
     ];
 
-    public function grade()
+    public function users()
     {
-        return $this->belongsTo(Grade::class);
+        return $this->belongsToMany(User::class);
     }
 }

@@ -10,6 +10,8 @@ use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
+use App\Models\Grade;
+
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -69,5 +71,10 @@ class User extends Authenticatable implements MustVerifyEmail
             ->take(2)
             ->map(fn ($word) => Str::substr($word, 0, 1))
             ->implode('');
+    }
+
+    public function grades()
+    {
+        return $this->belongsToMany(Grade::class);
     }
 }

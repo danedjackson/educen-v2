@@ -3,16 +3,73 @@
 use App\Models\Student;
 use Livewire\Component;
 use Livewire\Attributes\Title;
+use Jantinnerezo\LivewireAlert\Facades\LivewireAlert;
+use Flux\Flux;
 
 new #[Title('Students')] class extends Component {
-
+    
     public $students = [];
+
+    public ?Student $editingStudent = null;
 
     public $firstname, $lastname, $email, $dob, $contact_number, $address;
     
     public function mount()
     {
         $this->students = Student::latest()->get();
+    }
+
+    public function add()
+    {
+        $this->resetForm();
+        Flux::modal('add-student-modal')->show();
+    }
+
+    public function edit(Student $student)
+    {
+        $this->editingStudent = $student;
+        
+        // Fill the form with the student's data
+        $this->firstname = $student->firstname;
+        $this->lastname = $student->lastname;
+        $this->email = $student->email;
+        $this->dob = $student->dob;
+        $this->contact_number = $student->contact_number;
+        $this->address = $student->address;
+
+        Flux::modal('edit-student-modal')->show();
+    }
+
+    public function update()
+    {
+        $this->validate([
+            'firstname' => 'required',
+            'lastname' => 'required',
+            'email' => 'required|email|unique:students,email,' . $this->editingStudent->id,
+        ]);
+
+        $this->editingStudent->update([
+            'firstname' => $this->firstname,
+            'lastname' => $this->lastname,
+            'email' => $this->email,
+            'dob' => $this->dob,
+            'contact_number' => $this->contact_number,
+            'address' => $this->address,
+        ]);
+
+        $this->resetForm();
+        $this->editingStudent = null;
+
+        Flux::modal('edit-student-modal')->close();
+        
+        $this->students = Student::latest()->get();
+        
+        LivewireAlert::title('Student information updated successfully!')
+            ->success()
+            ->toast()
+            ->position('top-end')
+            ->timer(5000)
+            ->show();
     }
 
     public function save()
@@ -36,10 +93,22 @@ new #[Title('Students')] class extends Component {
         ]);
 
         // Reset form fields
-        $this->reset(['firstname', 'lastname', 'email', 'dob', 'contact_number', 'address']);
+        $this->resetForm();
 
         // Refresh the students list
         $this->students = Student::latest()->get();
+
+        LivewireAlert::title('Student information saved successfully!')
+            ->success()
+            ->toast()
+            ->position('top-end')
+            ->timer(5000)
+            ->show();
+    }
+
+    public function resetForm()
+    {
+        $this->reset(['firstname', 'lastname', 'email', 'dob', 'contact_number', 'address']);
     }
 }; ?>
 
@@ -52,7 +121,12 @@ new #[Title('Students')] class extends Component {
         </div>
         
         <flux:modal.trigger name="add-student-modal">
-            <flux:button variant="primary" icon="plus">Add Student</flux:button>
+            <flux:button 
+                variant="primary" 
+                icon="plus"
+                wire:click="add">
+                Add Student
+            </flux:button>
         </flux:modal.trigger>
     </div>
 
@@ -64,7 +138,7 @@ new #[Title('Students')] class extends Component {
             <flux:table.column>Email</flux:table.column>
             <flux:table.column>Contact</flux:table.column>
             <flux:table.column>Grade</flux:table.column>
-            <flux:table.column align="end"></flux:table.column>
+            <flux:table.column align="center">Actions</flux:table.column>
         </flux:table.column>
 
         <flux:table.rows>
@@ -75,8 +149,14 @@ new #[Title('Students')] class extends Component {
                     <flux:table.cell>{{ $student->email }}</flux:table.cell>
                     <flux:table.cell>{{ $student->contact_number }}</flux:table.cell>
                     <flux:table.cell>{{ $student->grade }}</flux:table.cell>
-                    <flux:table.cell align="end">
-                        <flux:button variant="ghost" size="sm" icon="pencil-square" inset="right" />
+                    <flux:table.cell align="center">
+                            <flux:button 
+                                wire:click="edit('{{ $student->id }}')"
+                                variant="ghost" 
+                                size="sm" 
+                                icon="pencil-square" 
+                                inset="right" 
+                            />
                     </flux:table.cell>
                 </flux:table.row>
             @empty
@@ -106,7 +186,13 @@ new #[Title('Students')] class extends Component {
             
             <div class="grid grid-cols-2 gap-4">
                 <flux:input label="Date of birth" type="date" wire:model="dob" />
-                <flux:input label="Contact number" wire:model="contact_number" icon="phone" />
+                <flux:input 
+                    label="Contact number" 
+                    wire:model="contact_number" 
+                    x-mask="(999) 999-9999"
+                    placeholder="(123) 456-7890"
+                    icon="phone" 
+                />
             </div>
 
             <flux:textarea label="Residential Address" wire:model="address" placeholder="Street, City, State..." />
@@ -119,5 +205,38 @@ new #[Title('Students')] class extends Component {
                 <flux:button type="submit" variant="primary" class="ml-2">Register Student</flux:button>
             </div>
         </form>
+    </flux:modal>
+
+    <flux:modal name="edit-student-modal" class="md:w-[32rem]">
+        <div class="space-y-6">
+            <flux:heading size="lg">Edit Student: {{ $firstname }}</flux:heading>
+
+            <form wire:submit="update" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <flux:input label="First name" wire:model="firstname" />
+                    <flux:input label="Last name" wire:model="lastname" />
+                </div>
+
+                <flux:input label="Email" wire:model="email" />
+
+                <div class="grid grid-cols-2 gap-4">
+                    <flux:input label="Date of Birth" type="date" wire:model="dob" />
+                    <flux:input 
+                        label="Contact number" 
+                        wire:model="contact_number" 
+                        x-mask="(999) 999-9999"
+                        placeholder="(123) 456-7890"
+                        icon="phone" 
+                    />
+                </div>
+
+                <flux:textarea label="Address" wire:model="address" />
+
+                <div class="flex">
+                    <flux:spacer />
+                    <flux:button type="submit" variant="primary">Update Student</flux:button>
+                </div>
+            </form>
+        </div>
     </flux:modal>
 </div>
