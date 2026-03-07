@@ -1,30 +1,39 @@
 <?php
 
+use App\Models\Grade;
 use App\Models\Student;
 use Livewire\Component;
 use Livewire\Attributes\Title;
 use Jantinnerezo\LivewireAlert\Facades\LivewireAlert;
 use Flux\Flux;
+use Illuminate\Support\Facades\Auth;
 
 new #[Title('Students')] class extends Component {
     
     public $students = [];
-
+    public $grades = [];
     public ?Student $editingStudent = null;
-
-    public $firstname, $lastname, $email, $dob, $contact_number, $address;
+    public $firstname, $lastname, $email, $dob, $contact_number, $address, $grade_id;
     
     public function mount()
     {
         $this->students = Student::latest()->get();
+        
+        if(Auth::user()->hasRole('admin')) {
+            $this->grades = Grade::all();
+        } else {
+            $this->grades = Auth::user()->grades;
+        }
     }
 
+    // Function that runs before the Add Student Modal is shown to reset the form state
     public function add()
     {
         $this->resetForm();
         Flux::modal('add-student-modal')->show();
     }
 
+    // Function to populate the Edit Student Modal with the selected student's data
     public function edit(Student $student)
     {
         $this->editingStudent = $student;
@@ -36,6 +45,7 @@ new #[Title('Students')] class extends Component {
         $this->dob = $student->dob;
         $this->contact_number = $student->contact_number;
         $this->address = $student->address;
+        $this->grade_id = $student->grade_id;
 
         Flux::modal('edit-student-modal')->show();
     }
@@ -46,6 +56,7 @@ new #[Title('Students')] class extends Component {
             'firstname' => 'required',
             'lastname' => 'required',
             'email' => 'required|email|unique:students,email,' . $this->editingStudent->id,
+            'grade_id'  => 'required|exists:grades,id',
         ]);
 
         $this->editingStudent->update([
@@ -55,6 +66,9 @@ new #[Title('Students')] class extends Component {
             'dob' => $this->dob,
             'contact_number' => $this->contact_number,
             'address' => $this->address,
+            'grade_id' => $this->grade_id,
+            'updated_by' => Auth::id(),
+            'updated_at' => now(),
         ]);
 
         $this->resetForm();
@@ -81,6 +95,7 @@ new #[Title('Students')] class extends Component {
             'dob' => 'required|date',
             'contact_number' => 'required',
             'address' => 'required|min:5',
+            'grade_id'  => 'required|exists:grades,id',
         ]);
 
         Student::create([
@@ -90,6 +105,9 @@ new #[Title('Students')] class extends Component {
             'dob' => $this->dob,
             'contact_number' => $this->contact_number,
             'address' => $this->address,
+            'grade_id' => $this->grade_id,
+            'created_by' => Auth::id(),
+            'created_at' => now(),
         ]);
 
         // Reset form fields
@@ -107,8 +125,8 @@ new #[Title('Students')] class extends Component {
     }
 
     public function resetForm()
-    {
-        $this->reset(['firstname', 'lastname', 'email', 'dob', 'contact_number', 'address']);
+    {                                  
+        $this->reset(['firstname', 'lastname', 'email', 'dob', 'contact_number', 'address', 'grade_id']);
     }
 }; ?>
 
@@ -116,7 +134,7 @@ new #[Title('Students')] class extends Component {
     {{-- Header Section --}}
     <div class="flex items-center justify-between mb-8">
         <div>
-            <flux:heading size="xl">Students</flux:heading>
+            <flux:heading size="xl">Information</flux:heading>
             <flux:subheading>Manage your student roster and information.</flux:subheading>
         </div>
         
@@ -148,7 +166,7 @@ new #[Title('Students')] class extends Component {
                     <flux:table.cell variant="strong">{{ $student->lastname }}</flux:table.cell>
                     <flux:table.cell>{{ $student->email }}</flux:table.cell>
                     <flux:table.cell>{{ $student->contact_number }}</flux:table.cell>
-                    <flux:table.cell>{{ $student->grade }}</flux:table.cell>
+                    <flux:table.cell>{{ $student->grade->name }}</flux:table.cell>
                     <flux:table.cell align="center">
                             <flux:button 
                                 wire:click="edit('{{ $student->id }}')"
@@ -184,7 +202,7 @@ new #[Title('Students')] class extends Component {
 
             <flux:input label="Email address" type="email" wire:model="email" icon="envelope" />
             
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-3 gap-3">
                 <flux:input label="Date of birth" type="date" wire:model="dob" />
                 <flux:input 
                     label="Contact number" 
@@ -193,6 +211,16 @@ new #[Title('Students')] class extends Component {
                     placeholder="(123) 456-7890"
                     icon="phone" 
                 />
+                <flux:select label="Select Grade" wire:model="grade_id" placeholder="Choose grade">
+                    <flux:select.option :value="null">
+                        Select
+                    </flux:select.option>
+                    @foreach($this->grades as $grade)
+                        <flux:select.option :value="$grade->id">
+                            {{ $grade->name }}
+                        </flux:select.option>
+                    @endforeach
+                </flux:select>
             </div>
 
             <flux:textarea label="Residential Address" wire:model="address" placeholder="Street, City, State..." />
@@ -219,7 +247,7 @@ new #[Title('Students')] class extends Component {
 
                 <flux:input label="Email" wire:model="email" />
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-3 gap-3">
                     <flux:input label="Date of Birth" type="date" wire:model="dob" />
                     <flux:input 
                         label="Contact number" 
@@ -228,6 +256,16 @@ new #[Title('Students')] class extends Component {
                         placeholder="(123) 456-7890"
                         icon="phone" 
                     />
+                    <flux:select label="Select Grade" wire:model="grade_id" placeholder="Choose grade">
+                        <flux:select.option :value="null">
+                            Select
+                        </flux:select.option>
+                        @foreach($this->grades as $grade)
+                            <flux:select.option :value="$grade->id">
+                                {{ $grade->name }}
+                            </flux:select.option>
+                        @endforeach
+                    </flux:select>
                 </div>
 
                 <flux:textarea label="Address" wire:model="address" />

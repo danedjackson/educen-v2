@@ -18,6 +18,7 @@ class Student extends Model
         'contact_number',
         'address',
         'email',
+        'grade_id',
     ];
 
     public function grade()

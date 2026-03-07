@@ -40,8 +40,11 @@
                     <x-nav-link :href="route('students.index')" :active="request()->routeIs('students*')" icon="users">Students</x-nav-link>
                 @endcan
 
-                @can('edit grades')
-                    <x-nav-link :href="route('grades')" :active="request()->routeIs('grades*')" icon="academic-cap">Grades</x-nav-link>
+                @can('manage grades')
+                    <x-nav-link :href="route('grades')" :active="request()->routeIs('grades*')" icon="numbered-list">Grades</x-nav-link>
+                @endcan
+                @can('edit scores')
+                    <x-nav-link :href="route('scores')" :active="request()->routeIs('scores*')" icon="academic-cap">Scores</x-nav-link>
                 @endcan
             </nav>
             <div class="p-4 border-t border-indigo-800">

@@ -23,12 +23,12 @@ class RoleSeeder extends Seeder
         $permissions = [
             'view students',
             'manage students',
-            'edit grades',
             'generate reports',
+            'edit scores',
             // Admin only
             'manage teachers', 
             'manage subjects',
-            'manage classes',
+            'manage grades',
             'manage lesson plans'
         ];
 
@@ -38,7 +38,7 @@ class RoleSeeder extends Seeder
 
         // 3. Create Roles and Assign Permissions
         $teacherRole = Role::create(['name' => 'teacher']);
-        $teacherRole->givePermissionTo(['view students', 'edit grades', 'generate reports', 'manage students']);
+        $teacherRole->givePermissionTo(['view students', 'edit scores', 'generate reports', 'manage students']);
 
         $adminRole = Role::create(['name' => 'admin']);
         $adminRole->givePermissionTo(Permission::all());
