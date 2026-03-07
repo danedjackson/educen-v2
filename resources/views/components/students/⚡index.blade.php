@@ -7,23 +7,30 @@ use Livewire\Attributes\Title;
 use Jantinnerezo\LivewireAlert\Facades\LivewireAlert;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Computed;
+use Livewire\WithPagination;
 
 new #[Title('Students')] class extends Component {
-    
-    public $students = [];
+    use WithPagination;    
+
     public $grades = [];
     public ?Student $editingStudent = null;
     public $firstname, $lastname, $email, $dob, $contact_number, $address, $grade_id;
-    
+    // Default value for pagination
+    public $perPage = 10;
+
     public function mount()
     {
-        $this->students = Student::latest()->get();
-        
         if(Auth::user()->hasRole('admin')) {
             $this->grades = Grade::all();
         } else {
             $this->grades = Auth::user()->grades;
         }
+    }
+    
+    #[Computed]
+    function students() {
+        return Student::latest()->paginate($this->perPage);
     }
 
     // Function that runs before the Add Student Modal is shown to reset the form state
@@ -76,8 +83,6 @@ new #[Title('Students')] class extends Component {
 
         Flux::modal('edit-student-modal')->close();
         
-        $this->students = Student::latest()->get();
-        
         LivewireAlert::title('Student information updated successfully!')
             ->success()
             ->toast()
@@ -112,9 +117,6 @@ new #[Title('Students')] class extends Component {
 
         // Reset form fields
         $this->resetForm();
-
-        // Refresh the students list
-        $this->students = Student::latest()->get();
 
         LivewireAlert::title('Student information saved successfully!')
             ->success()
@@ -160,7 +162,7 @@ new #[Title('Students')] class extends Component {
         </flux:table.column>
 
         <flux:table.rows>
-            @forelse ($students as $student)
+            @forelse ($this->students as $student)
                 <flux:table.row :key="$student->id">
                     <flux:table.cell variant="strong">{{ $student->firstname }}</flux:table.cell>
                     <flux:table.cell variant="strong">{{ $student->lastname }}</flux:table.cell>
@@ -186,7 +188,9 @@ new #[Title('Students')] class extends Component {
             @endforelse
         </flux:table.rows>
     </flux:table>
+    <flux:pagination :paginator="$this->students" />
 
+    
     {{-- Add Student Modal --}}
     <flux:modal name="add-student-modal" class="md:w-[32rem]">
         <form wire:submit="save" class="space-y-6">
