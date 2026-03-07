@@ -16,6 +16,12 @@ new #[Title('Students')] class extends Component {
     public $grades = [];
     public ?Student $editingStudent = null;
     public $firstname, $lastname, $email, $dob, $contact_number, $address, $grade_id;
+    public $search = '';
+
+    public function updatedSearch()
+    {
+        $this->resetPage();
+    }
     // Default value for pagination
     public $perPage = 10;
 
@@ -30,7 +36,11 @@ new #[Title('Students')] class extends Component {
     
     #[Computed]
     function students() {
-        return Student::latest()->paginate($this->perPage);
+        return Student::where(function ($query) {
+            $query->where('firstname', 'like', '%' . $this->search . '%')
+                  ->orWhere('lastname', 'like', '%' . $this->search . '%')
+                  ->orWhere('email', 'like', '%' . $this->search . '%');
+        })->latest()->paginate($this->perPage);
     }
 
     // Function that runs before the Add Student Modal is shown to reset the form state
@@ -118,6 +128,8 @@ new #[Title('Students')] class extends Component {
         // Reset form fields
         $this->resetForm();
 
+        $this->resetPage();
+
         LivewireAlert::title('Student information saved successfully!')
             ->success()
             ->toast()
@@ -140,14 +152,23 @@ new #[Title('Students')] class extends Component {
             <flux:subheading>Manage your student roster and information.</flux:subheading>
         </div>
         
-        <flux:modal.trigger name="add-student-modal">
-            <flux:button 
-                variant="primary" 
-                icon="plus"
-                wire:click="add">
-                Add Student
-            </flux:button>
-        </flux:modal.trigger>
+        <div class="flex items-center gap-4">
+            <flux:input 
+                wire:model.live="search" 
+                placeholder="Search students..." 
+                icon="magnifying-glass" 
+                class="w-64"
+            />
+            
+            <flux:modal.trigger name="add-student-modal">
+                <flux:button 
+                    variant="primary" 
+                    icon="plus"
+                    wire:click="add">
+                    Add Student
+                </flux:button>
+            </flux:modal.trigger>
+        </div>
     </div>
 
     {{-- Flux Table --}}
@@ -188,6 +209,11 @@ new #[Title('Students')] class extends Component {
             @endforelse
         </flux:table.rows>
     </flux:table>
+    
+    {{-- Pagination --}}
+    <div class="mt-6">
+        {{ $this->students->links() }}
+    </div>
     <flux:pagination :paginator="$this->students" />
 
     
