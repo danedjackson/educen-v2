@@ -25,4 +25,14 @@ class Student extends Model
     {
         return $this->belongsTo(Grade::class);
     }
+
+    public function scores()
+    {
+        return $this->hasMany(Score::class);
+    }
+
+    public function getFullNameAttribute()
+    {
+        return $this->firstname . ' ' . ($this->middlename ? $this->middlename . ' ' : '') . $this->lastname;
+    }
 }

@@ -77,4 +77,19 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->belongsToMany(Grade::class);
     }
+
+    public function hasGrade($gradeId)
+    {
+        return $this->grades()->where('id', $gradeId)->exists();
+    }
+
+    public function assignGrade($gradeId)
+    {
+        $this->grades()->syncWithoutDetaching($gradeId);
+    }
+
+     public function removeGrade($gradeId)
+    {
+        $this->grades()->detach($gradeId);
+    }
 }

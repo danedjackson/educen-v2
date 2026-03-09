@@ -18,9 +18,18 @@ new #[Title('Students')] class extends Component {
     public $firstname, $lastname, $email, $dob, $contact_number, $address, $grade_id;
     public $search = '';
 
+    // property to hold student being viewed
+    public ?Student $viewingStudent = null;
+
     public function updatedSearch()
     {
         $this->resetPage();
+    }
+
+    public function showStudent(Student $student)
+    {
+        $this->viewingStudent = $student;
+        Flux::modal('view-student-modal')->show();
     }
     // Default value for pagination
     public $perPage = 10;
@@ -176,8 +185,6 @@ new #[Title('Students')] class extends Component {
         <flux:table.columns>
             <flux:table.column>First Name</flux:table.column>
             <flux:table.column>Last Name</flux:table.column>
-            <flux:table.column>Email</flux:table.column>
-            <flux:table.column>Contact</flux:table.column>
             <flux:table.column>Grade</flux:table.column>
             <flux:table.column align="center">Actions</flux:table.column>
         </flux:table.column>
@@ -187,10 +194,15 @@ new #[Title('Students')] class extends Component {
                 <flux:table.row :key="$student->id">
                     <flux:table.cell variant="strong">{{ $student->firstname }}</flux:table.cell>
                     <flux:table.cell variant="strong">{{ $student->lastname }}</flux:table.cell>
-                    <flux:table.cell>{{ $student->email }}</flux:table.cell>
-                    <flux:table.cell>{{ $student->contact_number }}</flux:table.cell>
                     <flux:table.cell>{{ $student->grade->name }}</flux:table.cell>
-                    <flux:table.cell align="center">
+                    <flux:table.cell align="center" class="space-x-2">
+                            <flux:button 
+                                wire:click="showStudent('{{ $student->id }}')"
+                                variant="ghost" 
+                                size="sm" 
+                                icon="eye" 
+                                inset="right" 
+                            />
                             <flux:button 
                                 wire:click="edit('{{ $student->id }}')"
                                 variant="ghost" 
@@ -263,6 +275,28 @@ new #[Title('Students')] class extends Component {
                 <flux:button type="submit" variant="primary" class="ml-2">Register Student</flux:button>
             </div>
         </form>
+    </flux:modal>
+
+    <flux:modal name="view-student-modal" class="md:w-[32rem]">
+        <div class="space-y-6">
+            <flux:heading size="xl">Student Details</flux:heading>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div><strong>First name:</strong> {{ $viewingStudent?->firstname }}</div>
+                <div><strong>Last name:</strong> {{ $viewingStudent?->lastname }}</div>
+                <div><strong>Email:</strong> {{ $viewingStudent?->email }}</div>
+                <div><strong>DOB:</strong> {{ $viewingStudent?->dob }}</div>
+                <div><strong>Contact:</strong> {{ $viewingStudent?->contact_number }}</div>
+                <div><strong>Grade:</strong> {{ $viewingStudent?->grade->name ?? '' }}</div>
+                <div class="col-span-2"><strong>Address:</strong> {{ $viewingStudent?->address }}</div>
+            </div>
+
+            <div class="flex justify-end">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Close</flux:button>
+                </flux:modal.close>
+            </div>
+        </div>
     </flux:modal>
 
     <flux:modal name="edit-student-modal" class="md:w-[32rem]">
