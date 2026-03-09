@@ -19,12 +19,20 @@ new #[Title("Scores")] class extends Component
     // search/filter and pagination
     public $search = '';
     public $perPage = 12;
-
     // student selected by clicking a card
     public ?Student $selectedStudent = null;
-
     // subject chosen within modal (used to drill into individual scores)
     public ?Subject $selectedSubject = null;
+
+    // --- fields for adding a new score ---
+    public $subjectId;
+    public $assignmentTypeId;
+    public $scoreValue;
+    public $dateAdministered;
+    public $comments;
+
+    public $subjects = [];
+    public $assignmentTypes = [];
 
     public function updatedSearch()
     {
@@ -37,8 +45,11 @@ new #[Title("Scores")] class extends Component
         // basic search by name or email
         $query = Student::query();
 
-        // limit to the grades the current user is assigned to (unless admin)
-        if (! Auth::user()->hasRole('admin')) {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        // Now VS Code knows $user has the hasRole method
+        if (! $user->hasRole('admin')) {
             $gradeIds = Auth::user()->grades->pluck('id');
             $query->whereIn('grade_id', $gradeIds);
         }
@@ -49,7 +60,7 @@ new #[Title("Scores")] class extends Component
               ->orWhere('email', 'like', '%' . $this->search . '%');
         });
 
-        return $query->latest()->paginate($this->perPage);
+        return $query->paginate($this->perPage);
     }
 
     public function showScores(Student $student)
@@ -93,16 +104,6 @@ new #[Title("Scores")] class extends Component
                     ->values();
     }
 
-    // --- fields for adding a new score ---
-    public $subject_id;
-    public $assignment_type_id;
-    public $score_value;
-    public $date_administered;
-    public $comments;
-
-    public $subjects = [];
-    public $assignmentTypes = [];
-
     public function showAddScore()
     {
         // ensure form is clean
@@ -112,25 +113,33 @@ new #[Title("Scores")] class extends Component
 
     protected function resetScoreForm()
     {
-        $this->reset(['subject_id', 'assignment_type_id', 'score_value', 'date_administered', 'comments']);
+        $this->reset(['subjectId', 'assignmentTypeId', 'scoreValue', 'dateAdministered', 'comments']);
     }
 
     public function saveScore()
     {
         $this->validate([
-            'subject_id' => 'required|exists:subjects,id',
-            'assignment_type_id' => 'required|exists:assignment_types,id',
-            'score_value' => 'required|numeric|min:0',
-            'date_administered' => 'nullable|date',
+            'subjectId' => 'required|exists:subjects,id',
+            'assignmentTypeId' => 'required|exists:assignment_types,id',
+            'scoreValue' => 'required|numeric|min:0',
+            'dateAdministered' => 'nullable|date',
             'comments' => 'nullable|string',
+        ], [
+            'subjectId.required' => 'Please select a subject for this assignment.',
+            'subjectId.exists' => 'The selected subject is invalid.',
+            'assignmentTypeId.required' => 'You must choose an assignment type (e.g., Quiz, Homework).',
+            'scoreValue.required' => 'The score cannot be empty.',
+            'scoreValue.numeric' => 'The score must be a number.',
+            'scoreValue.min' => 'The score cannot be less than zero.',
+            'dateAdministered.date' => 'Please provide a valid date for when the assignment was administered.',
         ]);
 
         Score::create([
             'student_id' => $this->selectedStudent->id,
-            'subject_id' => $this->subject_id,
-            'assignment_type_id' => $this->assignment_type_id,
-            'score' => $this->score_value,
-            'date_administered' => $this->date_administered,
+            'subject_id' => $this->subjectId,
+            'assignment_type_id' => $this->assignmentTypeId,
+            'score' => $this->scoreValue,
+            'date_administered' => $this->dateAdministered,
             'comments' => $this->comments,
             'grade_id' => $this->selectedStudent->grade_id,
             'teacher_id' => Auth::id(),
@@ -145,7 +154,7 @@ new #[Title("Scores")] class extends Component
             ->success()
             ->toast()
             ->position('top-end')
-            ->timer(3000)
+            ->timer(5000)
             ->show();
     }
 };
@@ -160,7 +169,7 @@ new #[Title("Scores")] class extends Component
         </div>
         <div class="flex items-center gap-4">
             <flux:input
-                wire:model.debounce.500ms="search"
+                wire:model.live="search"
                 placeholder="Search students..."
                 icon="magnifying-glass"
                 class="w-64"
@@ -177,7 +186,7 @@ new #[Title("Scores")] class extends Component
                 :key="$student->id"
             >
                 <div class="font-medium text-lg">{{ $student->full_name }}</div>
-                <div class="text-sm text-zinc-500">{{ $student->grade?->name }}</div>
+                <div class="text-sm text-zinc-500">Grade {{ $student->grade?->name }}</div>
             </div>
         @empty
             <div class="col-span-full text-center py-12 text-zinc-400 italic">
@@ -197,9 +206,9 @@ new #[Title("Scores")] class extends Component
             <div class="flex items-center justify-between">
             <flux:heading size="xl">
                 @if($selectedSubject)
-                    Scores for {{ $selectedStudent?->full_name }} – <strong class="text-blue-600">{{ $selectedSubject->name }}</strong>
+                    Scores for {{ $selectedStudent?->full_name }} – {{ $selectedSubject->name }}
                 @else
-                    Subjects for {{ $selectedStudent?->full_name }}
+                    Subjects averages for {{ $selectedStudent?->full_name }}
                 @endif
             </flux:heading>
         </div>
@@ -261,7 +270,6 @@ new #[Title("Scores")] class extends Component
                     </div>
                 @endif
             @endif
-
             <div class="flex justify-between">
                 @if($selectedStudent)
                     <flux:button variant="primary" wire:click="showAddScore">Add Score</flux:button>
@@ -277,25 +285,25 @@ new #[Title("Scores")] class extends Component
     <flux:modal name="add-score-modal" class="md:w-[32rem]">
         <form wire:submit.prevent="saveScore" class="space-y-6">
             <div>
-                <flux:heading size="lg">Record New Score</flux:heading>
+                <flux:heading size="lg">Record New Score for {{ $selectedStudent?->full_name }}</flux:heading>
             </div>
 
-            <flux:select label="Subject" wire:model="subject_id">
+            <flux:select label="Subject" wire:model="subjectId">
                 <flux:select.option :value="null">Select subject</flux:select.option>
                 @foreach($this->subjects as $subject)
                     <flux:select.option :value="$subject->id">{{ $subject->name }}</flux:select.option>
                 @endforeach
             </flux:select>
 
-            <flux:select label="Assignment Type" wire:model="assignment_type_id">
+            <flux:select label="Assignment Type" wire:model="assignmentTypeId">
                 <flux:select.option :value="null">Select type</flux:select.option>
                 @foreach($this->assignmentTypes as $type)
                     <flux:select.option :value="$type->id">{{ $type->name }}</flux:select.option>
                 @endforeach
             </flux:select>
 
-            <flux:input label="Score" type="number" wire:model="score_value" min="0" step="0.01" />
-            <flux:input label="Date Administered" type="date" wire:model="date_administered" />
+            <flux:input label="Score" type="number" wire:model="scoreValue" min="0" step="0.01" />
+            <flux:input label="Date Administered" type="date" wire:model="dateAdministered" />
             <flux:textarea label="Comments" wire:model="comments" />
 
             <div class="flex">

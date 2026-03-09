@@ -15,7 +15,7 @@ new #[Title('Students')] class extends Component {
 
     public $grades = [];
     public ?Student $editingStudent = null;
-    public $firstname, $lastname, $email, $dob, $contact_number, $address, $grade_id;
+    public $firstname, $middlename, $lastname, $email, $dob, $contact_number, $address, $grade_id;
     public $search = '';
 
     // property to hold student being viewed
@@ -35,21 +35,26 @@ new #[Title('Students')] class extends Component {
     public $perPage = 10;
 
     public function mount()
-    {
-        if(Auth::user()->hasRole('admin')) {
-            $this->grades = Grade::all();
-        } else {
-            $this->grades = Auth::user()->grades;
-        }
-    }
+    {}
     
     #[Computed]
     function students() {
-        return Student::where(function ($query) {
-            $query->where('firstname', 'like', '%' . $this->search . '%')
+        $query = Student::query();
+        
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        // Now VS Code knows $user has the hasRole method
+        if (! $user->hasRole('admin')) {
+            $gradeIds = Auth::user()->grades->pluck('id');
+            $query->whereIn('grade_id', $gradeIds);
+        }
+
+        return $query->where(function ($query) {
+            $query->where('firstname', 'like', $this->search . '%')
                   ->orWhere('lastname', 'like', '%' . $this->search . '%')
                   ->orWhere('email', 'like', '%' . $this->search . '%');
-        })->latest()->paginate($this->perPage);
+        })->paginate($this->perPage);
     }
 
     // Function that runs before the Add Student Modal is shown to reset the form state
@@ -66,6 +71,7 @@ new #[Title('Students')] class extends Component {
         
         // Fill the form with the student's data
         $this->firstname = $student->firstname;
+        $this->middlename = $student->middlename;
         $this->lastname = $student->lastname;
         $this->email = $student->email;
         $this->dob = $student->dob;
@@ -87,6 +93,7 @@ new #[Title('Students')] class extends Component {
 
         $this->editingStudent->update([
             'firstname' => $this->firstname,
+            'middlename' => $this->middlename,
             'lastname' => $this->lastname,
             'email' => $this->email,
             'dob' => $this->dob,
@@ -120,10 +127,24 @@ new #[Title('Students')] class extends Component {
             'contact_number' => 'required',
             'address' => 'required|min:5',
             'grade_id'  => 'required|exists:grades,id',
+        ], [
+            'firstname.required' => 'The student\'s first name is required.',
+            'lastname.required' => 'The student\'s last name is required.',
+            'email.required' => 'An email address must be provided.',
+            'email.email' => 'Please enter a valid email format.',
+            'email.unique' => 'This email is already registered to another student.',
+            'dob.required' => 'Please select the student\'s date of birth.',
+            'dob.date' => 'The date of birth must be a valid date.',
+            'contact_number.required' => 'A primary contact number is required.',
+            'address.required' => 'The residential address cannot be empty.',
+            'address.min' => 'The address must be at least 5 characters long.',
+            'grade_id.required' => 'You must assign the student to a grade.',
+            'grade_id.exists' => 'The selected grade is invalid or no longer exists.',
         ]);
 
         Student::create([
             'firstname' => $this->firstname,
+            'middlename' => $this->middlename,
             'lastname' => $this->lastname,
             'email' => $this->email,
             'dob' => $this->dob,
@@ -149,7 +170,7 @@ new #[Title('Students')] class extends Component {
 
     public function resetForm()
     {                                  
-        $this->reset(['firstname', 'lastname', 'email', 'dob', 'contact_number', 'address', 'grade_id']);
+        $this->reset(['firstname', 'middlename', 'lastname', 'email', 'dob', 'contact_number', 'address', 'grade_id']);
     }
 }; ?>
 
@@ -182,10 +203,12 @@ new #[Title('Students')] class extends Component {
 
     {{-- Flux Table --}}
     <flux:table>
-        <flux:table.columns>
+        <flux:table.columns sticky>
             <flux:table.column>First Name</flux:table.column>
+            <flux:table.column>Middle Name</flux:table.column>
             <flux:table.column>Last Name</flux:table.column>
             <flux:table.column>Grade</flux:table.column>
+            <flux:table.column>Age</flux:table.column>
             <flux:table.column align="center">Actions</flux:table.column>
         </flux:table.column>
 
@@ -193,8 +216,10 @@ new #[Title('Students')] class extends Component {
             @forelse ($this->students as $student)
                 <flux:table.row :key="$student->id">
                     <flux:table.cell variant="strong">{{ $student->firstname }}</flux:table.cell>
+                    <flux:table.cell>{{ $student->middlename }}</flux:table.cell>
                     <flux:table.cell variant="strong">{{ $student->lastname }}</flux:table.cell>
                     <flux:table.cell>{{ $student->grade->name }}</flux:table.cell>
+                    <flux:table.cell>{{ $student->age }}</flux:table.cell>
                     <flux:table.cell align="center" class="space-x-2">
                             <flux:button 
                                 wire:click="showStudent('{{ $student->id }}')"
@@ -237,8 +262,9 @@ new #[Title('Students')] class extends Component {
                 <flux:subheading>Fill in the basic information to register a student.</flux:subheading>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-3 gap-3">
                 <flux:input label="First name" wire:model="firstname" placeholder="e.g. John" />
+                <flux:input label="Middle name" wire:model="middlename" placeholder="e.g. Doe" />
                 <flux:input label="Last name" wire:model="lastname" placeholder="e.g. Doe" />
             </div>
 
@@ -283,6 +309,7 @@ new #[Title('Students')] class extends Component {
 
             <div class="grid grid-cols-2 gap-4">
                 <div><strong>First name:</strong> {{ $viewingStudent?->firstname }}</div>
+                <div><strong>Middle name:</strong> {{ $viewingStudent?->middlename }}</div>
                 <div><strong>Last name:</strong> {{ $viewingStudent?->lastname }}</div>
                 <div><strong>Email:</strong> {{ $viewingStudent?->email }}</div>
                 <div><strong>DOB:</strong> {{ $viewingStudent?->dob }}</div>
@@ -304,8 +331,9 @@ new #[Title('Students')] class extends Component {
             <flux:heading size="lg">Edit Student: {{ $firstname }}</flux:heading>
 
             <form wire:submit="update" class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-3 gap-3">
                     <flux:input label="First name" wire:model="firstname" />
+                    <flux:input label="Middle name" wire:model="middlename" />
                     <flux:input label="Last name" wire:model="lastname" />
                 </div>
 

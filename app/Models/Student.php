@@ -21,6 +21,21 @@ class Student extends Model
         'grade_id',
     ];
 
+    /**
+     * Cast attributes to native types.
+     */
+    protected $casts = [
+        'dob' => 'date',
+    ];
+
+    /**
+     * Returns the age of the student based on their date of birth (dob).
+     */
+    public function getAgeAttribute()
+    {
+        return $this->dob->age;
+    }
+
     public function grade()
     {
         return $this->belongsTo(Grade::class);
