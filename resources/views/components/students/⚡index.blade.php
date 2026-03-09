@@ -65,11 +65,13 @@ new #[Title('Students')] class extends Component {
         }
 
         // 2. Search Layer (Wrapped in a function to isolate the "OR" logic)
-        $query->where(function ($q) {
-            $q->where('firstname', 'like', $this->search . '%')
-            ->orWhere('lastname', 'like', $this->search . '%')
-            ->orWhere('email', 'like', $this->search . '%');
-        });
+        if(strlen($this->search) >= 3) {
+            $query->where(function ($q) {
+                $q->where('firstname', 'like', $this->search . '%')
+                ->orWhere('lastname', 'like', $this->search . '%')
+                ->orWhere('email', 'like', $this->search . '%');
+            });
+        }
 
         // 3. Eager Loading (Critical for performance to avoid N+1)
         return $query->with('grade')->paginate($this->perPage);

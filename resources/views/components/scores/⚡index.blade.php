@@ -54,11 +54,13 @@ new #[Title("Scores")] class extends Component
             $query->whereIn('grade_id', $gradeIds);
         }
 
-        $query->where(function ($q) {
-            $q->where('firstname', 'like', $this->search . '%')
-              ->orWhere('lastname', 'like', $this->search . '%')
-              ->orWhere('email', 'like', '%' . $this->search . '%');
-        });
+        if(strlen($this->search) >= 3) {
+            $query->where(function ($q) {
+                $q->where('firstname', 'like', $this->search . '%')
+                ->orWhere('lastname', 'like', $this->search . '%')
+                ->orWhere('email', 'like', '%' . $this->search . '%');
+            });
+        }
 
         return $query->paginate($this->perPage);
     }
