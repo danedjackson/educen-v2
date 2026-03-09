@@ -13,7 +13,7 @@ use Livewire\WithPagination;
 new #[Title('Students')] class extends Component {
     use WithPagination;    
 
-    public $grades = [];
+    public $isAdmin = false;
     public ?Student $editingStudent = null;
     public $firstname, $middlename, $lastname, $email, $dob, $contact_number, $address, $grade_id;
     public $search = '';
@@ -35,26 +35,44 @@ new #[Title('Students')] class extends Component {
     public $perPage = 10;
 
     public function mount()
-    {}
-    
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $this->isAdmin = $user->hasRole('admin');
+    }
+
     #[Computed]
-    function students() {
-        $query = Student::query();
-        
+    public function grades()
+    {
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        // Now VS Code knows $user has the hasRole method
-        if (! $user->hasRole('admin')) {
-            $gradeIds = Auth::user()->grades->pluck('id');
-            $query->whereIn('grade_id', $gradeIds);
+        // This property is now reactive and always available for your dropdowns
+        return $this->isAdmin 
+            ? Grade::all() 
+            : $user->grades;
+    }
+
+    #[Computed]
+    public function students()
+    {
+        $query = Student::query();
+
+        // 1. Security/Scope Layer
+        if (!$this->isAdmin) {
+            // We use the computed grades property we just made
+            $query->whereIn('grade_id', $this->grades->pluck('id'));
         }
 
-        return $query->where(function ($query) {
-            $query->where('firstname', 'like', $this->search . '%')
-                  ->orWhere('lastname', 'like', '%' . $this->search . '%')
-                  ->orWhere('email', 'like', '%' . $this->search . '%');
-        })->paginate($this->perPage);
+        // 2. Search Layer (Wrapped in a function to isolate the "OR" logic)
+        $query->where(function ($q) {
+            $q->where('firstname', 'like', $this->search . '%')
+            ->orWhere('lastname', 'like', $this->search . '%')
+            ->orWhere('email', 'like', $this->search . '%');
+        });
+
+        // 3. Eager Loading (Critical for performance to avoid N+1)
+        return $query->with('grade')->paginate($this->perPage);
     }
 
     // Function that runs before the Add Student Modal is shown to reset the form state
