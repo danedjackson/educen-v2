@@ -112,19 +112,26 @@ new #[Title("Scores")] class extends Component
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        return $this->selectedStudent->scores
-            // If not an admin, only average the scores they authored
-            ->when(! $user->hasRole('admin'), function ($scores) use ($user) {
-                return $scores->where('teacher_id', $user->ulid);
-            })
+        // Determine which scores to pull based on the toggle
+        $scores = $this->selectedStudent->scores
+            ->when(! $user->hasRole('admin'), function ($collection) use ($user) {
+                return $collection->where('teacher_id', $user->ulid);
+            });
+
+        // If NOT viewing previous scores, filter by the student's current grade
+        if (! $this->showPreviousScores) {
+            $scores = $scores->where('grade_id', $this->selectedStudent->grade_id);
+        }
+
+        return $scores
             ->groupBy('subject_id')
-            ->map(fn($scores) => [
-                'subject' => $scores->first()->subject,
-                'average' => $scores->avg('score'),
+            ->map(fn($groupedScores) => [
+                'subject' => $groupedScores->first()->subject,
+                // Force average to 0 if viewing previous scores, otherwise calculate it
+                'average' => $this->showPreviousScores ? 0 : $groupedScores->avg('score'),
             ])
             ->values();
     }
-
 
     public function showAddScore()
     {
@@ -182,6 +189,15 @@ new #[Title("Scores")] class extends Component
 
     public function editScore($scoreId)
     {
+        if ($this->showPreviousScores) {
+            return LivewireAlert::title('You are not allowed to edit scores while viewing previous scores.')
+            ->error()
+            ->toast()
+            ->position('top-end')
+            ->timer(config('app.toast_duration'))
+            ->show();
+        }
+
         $this->editingScoreId = $scoreId;
         $score = Score::find($scoreId);
         
@@ -200,6 +216,15 @@ new #[Title("Scores")] class extends Component
         // Authorization check
         if ($score->teacher_id !== Auth::user()->ulid) {
             return LivewireAlert::title('You are not authorized to delete this score.')
+            ->error()
+            ->toast()
+            ->position('top-end')
+            ->timer(config('app.toast_duration'))
+            ->show();
+        }
+
+        if ($this->showPreviousScores) {
+            return LivewireAlert::title('You are not allowed to delete scores while viewing previous scores.')
             ->error()
             ->toast()
             ->position('top-end')
@@ -404,8 +429,10 @@ new #[Title("Scores")] class extends Component
                     </div>
                 @endif
             @else
-                @if($selectedStudent && $selectedStudent->scores->isNotEmpty())
-                    Click a subject below to see detailed scores for that subject.
+                @if($selectedStudent && $this->subjectAverages->isNotEmpty())
+                    <div class="mb-4 text-sm text-zinc-500">
+                        Click a subject below to see detailed scores for the current grade level.
+                    </div>
                     <flux:table>
                         <flux:table.columns>
                             <flux:table.column>Subject</flux:table.column>
@@ -421,10 +448,11 @@ new #[Title("Scores")] class extends Component
                         </flux:table.rows>
                     </flux:table>
                 @else
-                    <div class="text-center text-zinc-500 italic">
-                        No scores recorded for this student.
+                    <div class="text-center py-8 text-zinc-500 italic">
+                        No scores recorded for this student in their current grade (Grade {{ $selectedStudent?->grade?->name }}).
                     </div>
                 @endif
+
             @endif
             <div class="flex justify-between">
                 @if($selectedStudent)
