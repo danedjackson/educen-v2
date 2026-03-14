@@ -19,6 +19,7 @@ class Student extends Model
         'address',
         'email',
         'grade_id',
+        'is_deleted',
     ];
 
     /**

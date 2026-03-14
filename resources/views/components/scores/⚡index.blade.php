@@ -23,6 +23,8 @@ new #[Title("Scores")] class extends Component
     public ?Student $selectedStudent = null;
     // subject chosen within modal (used to drill into individual scores)
     public ?Subject $selectedSubject = null;
+    public $editingScoreId = null;
+    public $editingScoreData = [];
 
     // --- fields for adding a new score ---
     public $subjectId;
@@ -33,6 +35,7 @@ new #[Title("Scores")] class extends Component
 
     public $subjects = [];
     public $assignmentTypes = [];
+    public bool $showPreviousScores = false;
 
     public function updatedSearch()
     {
@@ -42,19 +45,28 @@ new #[Title("Scores")] class extends Component
     #[Computed]
     function students()
     {
-        // basic search by name or email
-        $query = Student::query();
-
+        $query = Student::query()->where('is_deleted', false);
         /** @var \App\Models\User $user */
         $user = Auth::user();
+        $gradeIds = $user->grades->pluck('id');
 
-        // Now VS Code knows $user has the hasRole method
-        if (! $user->hasRole('admin')) {
-            $gradeIds = Auth::user()->grades->pluck('id');
-            $query->whereIn('grade_id', $gradeIds);
+        if ($this->showPreviousScores) {
+            // Logic for "Previous Scores":
+            // Show students who have scores created by this teacher 
+            // where the score's grade_id is NOT one of the teacher's current grades.
+            $query->whereHas('scores', function ($q) use ($user) {
+                $q->where('teacher_id', $user->ulid);
+            })
+            ->whereNotIn('grade_id', $gradeIds);
+        } else {
+            // "Current Scores" Logic (Your existing logic)
+            if (!$user->hasRole('admin')) {
+                $query->whereIn('grade_id', $gradeIds);
+            }
         }
 
-        if(strlen($this->search) >= 3) {
+        // Existing search logic
+        if (strlen($this->search) >= 3) {
             $query->where(function ($q) {
                 $q->where('firstname', 'like', $this->search . '%')
                 ->orWhere('lastname', 'like', $this->search . '%')
@@ -97,14 +109,22 @@ new #[Title("Scores")] class extends Component
             return collect();
         }
 
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
         return $this->selectedStudent->scores
-                    ->groupBy('subject_id')
-                    ->map(fn($scores) => [
-                        'subject' => $scores->first()->subject,
-                        'average' => $scores->avg('score'),
-                    ])
-                    ->values();
+            // If not an admin, only average the scores they authored
+            ->when(! $user->hasRole('admin'), function ($scores) use ($user) {
+                return $scores->where('teacher_id', $user->ulid);
+            })
+            ->groupBy('subject_id')
+            ->map(fn($scores) => [
+                'subject' => $scores->first()->subject,
+                'average' => $scores->avg('score'),
+            ])
+            ->values();
     }
+
 
     public function showAddScore()
     {
@@ -159,6 +179,80 @@ new #[Title("Scores")] class extends Component
             ->timer(5000)
             ->show();
     }
+
+    public function editScore($scoreId)
+    {
+        $this->editingScoreId = $scoreId;
+        $score = Score::find($scoreId);
+        
+        // Load current values into the temporary array
+        $this->editingScoreData = [
+            'score' => $score->score,
+            'comments' => $score->comments,
+            'assignment_type_id' => $score->assignment_type_id,
+        ];
+    }
+
+    public function deleteScore($scoreId)
+    {
+        $score = Score::find($scoreId);
+
+        // Authorization check
+        if ($score->teacher_id !== Auth::user()->ulid) {
+            return LivewireAlert::title('You are not authorized to delete this score.')
+            ->error()
+            ->toast()
+            ->position('top-end')
+            ->timer(config('app.toast_duration'))
+            ->show();
+        }
+
+        $score->delete();
+
+        // Refresh the student relation to update the table immediately
+        $this->selectedStudent->load('scores');
+
+        LivewireAlert::title('Score deleted successfully.')
+            ->success()
+            ->toast()
+            ->position('top-end')
+            ->timer(config('app.toast_duration'))
+            ->show();
+    }
+
+    public function cancelEdit()
+    {
+        $this->editingScoreId = null;
+        $this->editingScoreData = [];
+    }
+
+    public function updateScore($scoreId)
+    {
+        $this->validate([
+            'editingScoreData.score' => 'required|numeric|min:0',
+            'editingScoreData.assignment_type_id' => 'required|exists:assignment_types,id',
+        ]);
+
+        $score = Score::find($scoreId);
+        $score->update([
+            'score' => $this->editingScoreData['score'],
+            'comments' => $this->editingScoreData['comments'],
+            'assignment_type_id' => $this->editingScoreData['assignment_type_id'],
+        ]);
+
+        $this->cancelEdit();
+        
+        // Refresh the student relation to show the new data
+        $this->selectedStudent->load('scores');
+        
+        LivewireAlert::title('Score updated!')->success()->toast()->show();
+    }
+
+    public function togglePreviousScores()
+    {
+        $this->showPreviousScores = ! $this->showPreviousScores;
+        unset($this->students);
+    }
 };
 ?>
 
@@ -201,9 +295,10 @@ new #[Title("Scores")] class extends Component
     <div class="mt-6">
         {{ $this->students->links() }}
     </div>
+    <flux:pagination :paginator="$this->students" />
 
     {{-- Modal showing scores for selected student --}}
-    <flux:modal name="view-scores-modal" class="md:w-[34rem]">
+    <flux:modal name="view-scores-modal" class="md:max-w-5xl w-full">
         <div class="space-y-6">
             <div class="flex items-center justify-between">
             <flux:heading size="xl">
@@ -221,7 +316,11 @@ new #[Title("Scores")] class extends Component
                 </div>
 
                 @php
-                    $scores = $selectedStudent->scores->where('subject_id', $selectedSubject->id);
+                    $scores = $selectedStudent->scores
+                        ->where('subject_id', $selectedSubject->id)
+                        ->when(!Auth::user()->hasRole('admin'), function ($collection) {
+                            return $collection->where('teacher_id', Auth::user()->ulid);
+                        });
                 @endphp
 
                 @if($scores->isNotEmpty())
@@ -231,16 +330,70 @@ new #[Title("Scores")] class extends Component
                             <flux:table.column>Score</flux:table.column>
                             <flux:table.column>Date Administered</flux:table.column>
                             <flux:table.column>Teacher</flux:table.column>
+                            @if(Auth::user()->hasRole('admin'))
+                                <flux:table.column>Grade</flux:table.column>
+                            @endif
                             <flux:table.column>Comments</flux:table.column>
                         </flux:table.columns>
                         <flux:table.rows>
                             @foreach($scores as $score)
                                 <flux:table.row :key="$score->id">
-                                    <flux:table.cell>{{ $score->assignmentType?->name }}</flux:table.cell>
-                                    <flux:table.cell>{{ $score->score }}</flux:table.cell>
-                                    <flux:table.cell>{{ $score->date_administered ? $score->date_administered->format('M j, Y') : '-' }}</flux:table.cell>
-                                    <flux:table.cell>{{ $score->teacher?->name }}</flux:table.cell>
-                                    <flux:table.cell>{{ $score->comments }}</flux:table.cell>
+                                    @if($editingScoreId === $score->id)
+                                        {{-- EDIT MODE --}}
+                                        <flux:table.cell>
+                                            <flux:select  wire:model="editingScoreData.assignment_type_id">
+                                                @foreach($assignmentTypes as $type)
+                                                    <flux:select.option :value="$type->id">{{ $type->name }}</flux:select.option>
+                                                @endforeach
+                                            </flux:select>
+                                        </flux:table.cell>
+                                        <flux:table.cell>
+                                            <flux:input size="sm" type="number" wire:model="editingScoreData.score" />
+                                        </flux:table.cell>
+                                        <flux:table.cell>{{ $score->date_administered?->format('M j, Y') }}</flux:table.cell>
+                                        <flux:table.cell>{{ $score->teacher?->name }}</flux:table.cell>
+                                        @if(Auth::user()->hasRole('admin'))
+                                            <flux:table.cell>{{ $score->grade?->name }}</flux:table.cell>
+                                        @endif
+                                        <flux:table.cell>
+                                            <flux:input size="sm" wire:model="editingScoreData.comments" />
+                                        </flux:table.cell>
+                                        <flux:table.cell align="right" class="space-x-2">
+                                            <flux:button size="sm" icon="check" variant="ghost" wire:click="updateScore('{{ $score->id }}')" />
+                                            <flux:button size="sm" icon="x-mark" variant="ghost" wire:click="cancelEdit" />
+                                        </flux:table.cell>
+                                    @else
+                                        {{-- DISPLAY MODE --}}
+                                        <flux:table.cell>{{ $score->assignmentType?->name }}</flux:table.cell>
+                                        <flux:table.cell variant="strong">{{ $score->score }}</flux:table.cell>
+                                        <flux:table.cell>{{ $score->date_administered?->format('M j, Y') }}</flux:table.cell>
+                                        <flux:table.cell>{{ $score->teacher?->name }}</flux:table.cell>
+                                        @if(Auth::user()->hasRole('admin'))
+                                            <flux:table.cell>{{ $score->grade?->name }}</flux:table.cell>
+                                        @endif
+                                        <flux:table.cell>
+                                            @if($score->comments)
+                                                <flux:tooltip content="{{ $score->comments }}">
+                                                    <span class="cursor-help underline decoration-dotted decoration-zinc-300">
+                                                        {{ Str::limit($score->comments, 20) }}
+                                                    </span>
+                                                </flux:tooltip>
+                                            @else
+                                                <span class="text-zinc-400">-</span>
+                                            @endif
+                                        </flux:table.cell>
+                                        <flux:table.cell align="right">
+                                            <flux:button size="sm" icon="pencil-square" variant="ghost" wire:click="editScore('{{ $score->id }}')" />
+                                            <flux:button 
+                                                size="sm" 
+                                                icon="trash" 
+                                                variant="ghost" 
+                                                class="text-red-500 hover:text-red-600"
+                                                wire:confirm="Are you sure you want to delete this score? This cannot be undone."
+                                                wire:click="deleteScore('{{ $score->id }}')" 
+                                            />
+                                        </flux:table.cell>
+                                    @endif
                                 </flux:table.row>
                             @endforeach
                         </flux:table.rows>
@@ -252,6 +405,7 @@ new #[Title("Scores")] class extends Component
                 @endif
             @else
                 @if($selectedStudent && $selectedStudent->scores->isNotEmpty())
+                    Click a subject below to see detailed scores for that subject.
                     <flux:table>
                         <flux:table.columns>
                             <flux:table.column>Subject</flux:table.column>
@@ -317,4 +471,13 @@ new #[Title("Scores")] class extends Component
             </div>
         </form>
     </flux:modal>
+
+    <div class="fixed bottom-4">
+        <flux:button 
+            variant="ghost" 
+            wire:click="togglePreviousScores"
+        >
+            {{ $showPreviousScores ? 'Current Scores' : 'Previous Scores' }}
+        </flux:button>
+    </div>
 </div>

@@ -16,6 +16,7 @@ new #[Title('Students')] class extends Component {
     public $isAdmin = false;
     public ?Student $editingStudent = null;
     public $firstname, $middlename, $lastname, $email, $dob, $contact_number, $address, $grade_id;
+    public $perPage = 10;
     public $search = '';
 
     // property to hold student being viewed
@@ -31,8 +32,6 @@ new #[Title('Students')] class extends Component {
         $this->viewingStudent = $student;
         Flux::modal('view-student-modal')->show();
     }
-    // Default value for pagination
-    public $perPage = 10;
 
     public function mount()
     {
@@ -56,7 +55,7 @@ new #[Title('Students')] class extends Component {
     #[Computed]
     public function students()
     {
-        $query = Student::query();
+        $query = Student::query()->where('is_deleted', false);
 
         // 1. Security/Scope Layer
         if (!$this->isAdmin) {
@@ -133,7 +132,7 @@ new #[Title('Students')] class extends Component {
             ->success()
             ->toast()
             ->position('top-end')
-            ->timer(5000)
+            ->timer(config('app.toast_duration'))
             ->show();
     }
 
@@ -171,6 +170,7 @@ new #[Title('Students')] class extends Component {
             'contact_number' => $this->contact_number,
             'address' => $this->address,
             'grade_id' => $this->grade_id,
+            'is_deleted' => false,
             'created_by' => Auth::id(),
             'created_at' => now(),
         ]);
@@ -184,7 +184,46 @@ new #[Title('Students')] class extends Component {
             ->success()
             ->toast()
             ->position('top-end')
-            ->timer(5000)
+            ->timer(config('app.toast_duration'))
+            ->show();
+    }
+
+    public function deleteStudent(string $studentId)
+    {
+        $student = Student::find($studentId);
+
+        // Authorization check
+        if(!$this->isAdmin){
+            return LivewireAlert::title('You are not authorized to delete this student information.')
+                ->error()
+                ->toast()
+                ->position('top-end')
+                ->timer(config('app.toast_duration'))
+                ->show();
+        }
+
+        if (!$student) {
+            return LivewireAlert::title('Student not found.')
+                ->error()
+                ->toast()
+                ->position('top-end')
+                ->timer(config('app.toast_duration'))
+                ->show();
+        }
+
+        $student->update(['is_deleted' => true]);
+
+        // If the deleted student is currently being viewed, reset the viewing state
+        if ($this->viewingStudent && $this->viewingStudent->id === $student->id) {
+            $this->viewingStudent = null;
+            Flux::modal('view-student-modal')->close();
+        }
+
+        LivewireAlert::title('Student information deleted successfully!')
+            ->success()
+            ->toast()
+            ->position('top-end')
+            ->timer(config('app.toast_duration'))
             ->show();
     }
 
@@ -255,6 +294,14 @@ new #[Title('Students')] class extends Component {
                                 icon="pencil-square" 
                                 inset="right" 
                             />
+                            <flux:button 
+                                size="sm" 
+                                icon="trash" 
+                                variant="ghost" 
+                                class="text-red-500 hover:text-red-600"
+                                wire:confirm="Are you sure you want to delete this student information?"
+                                wire:click="deleteStudent('{{ $student->id }}')" 
+                            />
                     </flux:table.cell>
                 </flux:table.row>
             @empty
@@ -323,6 +370,7 @@ new #[Title('Students')] class extends Component {
         </form>
     </flux:modal>
 
+    {{-- View Student Modal --}}
     <flux:modal name="view-student-modal" class="md:w-[32rem]">
         <div class="space-y-6">
             <flux:heading size="xl">Student Details</flux:heading>
@@ -346,6 +394,7 @@ new #[Title('Students')] class extends Component {
         </div>
     </flux:modal>
 
+    {{-- Edit Student Modal --}}
     <flux:modal name="edit-student-modal" class="md:w-[32rem]">
         <div class="space-y-6">
             <flux:heading size="lg">Edit Student: {{ $firstname }}</flux:heading>
