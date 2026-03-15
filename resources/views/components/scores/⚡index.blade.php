@@ -147,6 +147,15 @@ new #[Title("Scores")] class extends Component
 
     public function saveScore()
     {
+        if ($this->showPreviousScores) {
+            return LivewireAlert::title('You are not allowed to add scores while viewing previous scores.')
+            ->error()
+            ->toast()
+            ->position('top-end')
+            ->timer(config('app.toast_duration'))
+            ->show();
+        }
+        
         $this->validate([
             'subjectId' => 'required|exists:subjects,id',
             'assignmentTypeId' => 'required|exists:assignment_types,id',
