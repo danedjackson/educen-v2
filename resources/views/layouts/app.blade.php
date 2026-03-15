@@ -40,7 +40,6 @@
                     <x-nav-link :href="route('students.index')" :active="request()->routeIs('students*')" icon="users">Students</x-nav-link>
                 @endcan
 
-
                 @can('edit scores')
                     <x-nav-link :href="route('scores.index')" :active="request()->routeIs('scores*')" icon="academic-cap">Scores</x-nav-link>
                 @endcan
@@ -50,6 +49,7 @@
                 @endcan
             </nav>
             <div class="p-4 border-t border-indigo-800">
+                <x-nav-link :href="route('admin')" :active="request()->routeIs('admin*')" icon="adjustments-horizontal">Administration</x-nav-link>
                 <span class="text-sm opacity-75">{{ auth()->user()->name }}</span>
             </div>
         </aside>
