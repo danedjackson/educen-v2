@@ -1,19 +1,32 @@
 <?php
 
+use App\Models\Grade;
 use App\Models\User;
-use Carbon\Carbon;
 use Flux\Flux;
-use Illuminate\Database\Eloquent\Collection;
 use Jantinnerezo\LivewireAlert\Facades\LivewireAlert;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Spatie\Permission\Models\Role;
 
 new #[Title("Administration Panel")] class extends Component
 {
     public ?User $editingUser = null;
-    public $name;
-    public $email;
+    public $name, $email;
+    public $selectedRoles = [];
+    public $selectedGrades = [];
+
+    #[Computed]
+    public function roles()
+    {
+        return Role::all();
+    }
+
+    #[Computed]
+    public function grades()
+    {
+        return Grade::all();
+    }
 
     #[Computed]
     public function users()
@@ -34,6 +47,10 @@ new #[Title("Administration Panel")] class extends Component
         $this->editingUser = $user;
         $this->name = $user->name;
         $this->email = $user->email;
+
+        $this->selectedRoles = $user->roles->pluck('name')->toArray();
+        $this->selectedGrades = $user->grades->pluck('id')->toArray();
+
         Flux::modal('edit-user-modal')->show();
     }
 
@@ -53,6 +70,13 @@ new #[Title("Administration Panel")] class extends Component
             'email' => $this->email,
         ]);
 
+        if(method_exists($this->editingUser, 'syncRoles')) {
+            $this->editingUser->syncRoles($this->selectedRoles);
+        }
+        if (method_exists($this->editingUser, 'grades')) {
+            $this->editingUser->grades()->sync($this->selectedGrades);
+        }
+
         $this->resetForm();
         $this->editingUser = null;
 
@@ -68,7 +92,7 @@ new #[Title("Administration Panel")] class extends Component
 
     public function resetForm()
     {
-        $this->reset(['name', 'email']);
+        $this->reset(['name', 'email', 'selectedRoles', 'selectedGrades']);
     }
 };
 ?>
@@ -106,8 +130,8 @@ new #[Title("Administration Panel")] class extends Component
                             <flux:table.cell variant="strong">{{ $user->name }}</flux:table.cell>
                             <flux:table.cell>{{ $user->email }}</flux:table.cell>
                             <flux:table.cell>{{ $user->email_verified_at ? 'Yes' : 'No' }}</flux:table.cell>
-                            <flux:table.cell>{{ $user->user_confirmed_at ? Carbon::parse($user->user_confirmed_at)->format('d-M-Y') : 'No' }}</flux:table.cell>
-                            <flux:table.cell>{{ Carbon::parse($user->created_at)->format('d-M-Y') }}</flux:table.cell>
+                            <flux:table.cell>{{ $user->user_confirmed_at ? \Carbon\Carbon::parse($user->user_confirmed_at)->format('d-M-Y') : 'No' }}</flux:table.cell>
+                            <flux:table.cell>{{ \Carbon\Carbon::parse($user->created_at)->format('d-M-Y') }}</flux:table.cell>
                             <flux:table.cell align="center">
                                 <flux:switch
                                     :checked="!!$user->user_confirmed_at"
@@ -144,6 +168,30 @@ new #[Title("Administration Panel")] class extends Component
 
             <flux:input label="Name" wire:model="name" />
             <flux:input label="Email address" type="email" wire:model="email" icon="envelope" />
+
+            {{-- Role Selection Section --}}
+            <flux:checkbox.group label="Assign Roles" wire:model="selectedRoles">
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    @foreach($this->roles as $role)
+                        <flux:checkbox 
+                            :value="$role->name" 
+                            :label="ucfirst($role->name)" 
+                        />
+                    @endforeach
+                </div>
+            </flux:checkbox.group>
+
+            {{-- Grade Selection Section --}}
+            <flux:checkbox.group label="Assign Grades" wire:model="selectedGrades">
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    @foreach($this->grades as $grade)
+                        <flux:checkbox 
+                            :value="$grade->id" 
+                            :label="$grade->name" 
+                        />
+                    @endforeach
+                </div>
+            </flux:checkbox.group>
 
             <div class="flex">
                 <flux:spacer />

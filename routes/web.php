@@ -6,7 +6,11 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::get('/awaiting-confirmation', function () {
+    return view('awaiting-confirmation');
+})->name('awaiting-confirmation');
+
+Route::middleware(['auth', 'verified', 'confirmed'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
     Route::livewire('/students', 'students.index')->name('students.index');
     Route::view('teachers', 'teachers')->name('teachers');

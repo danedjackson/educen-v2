@@ -48,8 +48,11 @@
                     <x-nav-link :href="route('grades')" :active="request()->routeIs('grades*')" icon="numbered-list">Grades</x-nav-link>
                 @endcan
             </nav>
+            
             <div class="p-4 border-t border-indigo-800">
-                <x-nav-link :href="route('admin')" :active="request()->routeIs('admin*')" icon="adjustments-horizontal">Administration</x-nav-link>
+                @if(auth()->user()->hasRole('admin'))
+                    <x-nav-link :href="route('admin')" :active="request()->routeIs('admin*')" icon="adjustments-horizontal">Administration</x-nav-link>
+                @endif
                 <span class="text-sm opacity-75">{{ auth()->user()->name }}</span>
             </div>
         </aside>
