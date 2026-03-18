@@ -130,4 +130,5 @@ return [
     */
 
     'toast_duration' => env('TOAST_DURATION', 5000),
+    'page_size' => env('PAGE_SIZE', 10),
 ];

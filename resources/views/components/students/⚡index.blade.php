@@ -15,8 +15,7 @@ new #[Title('Students')] class extends Component {
 
     public $isAdmin = false;
     public ?Student $editingStudent = null;
-    public $firstname, $middlename, $lastname, $email, $dob, $contact_number, $address, $grade_id;
-    public $perPage = 10;
+    public $perPage, $firstname, $middlename, $lastname, $email, $dob, $contact_number, $address, $grade_id, $isAdvancing;
     public $search = '';
 
     // property to hold student being viewed
@@ -38,6 +37,8 @@ new #[Title('Students')] class extends Component {
         /** @var \App\Models\User $user */
         $user = Auth::user();
         $this->isAdmin = $user->hasRole('admin');
+
+        $this->perPage = config('app.page_size', 10);
     }
 
     #[Computed]
@@ -97,6 +98,7 @@ new #[Title('Students')] class extends Component {
         $this->contact_number = $student->contact_number;
         $this->address = $student->address;
         $this->grade_id = $student->grade_id;
+        $this->isAdvancing = $student->is_advancing;
 
         Flux::modal('edit-student-modal')->show();
     }
@@ -108,6 +110,10 @@ new #[Title('Students')] class extends Component {
             'lastname' => 'required',
             'email' => 'required|email|unique:students,email,' . $this->editingStudent->id,
             'grade_id'  => 'required|exists:grades,id',
+            'dob' => 'required|date',
+            'contact_number' => 'required',
+            'address' => 'required|min:5',
+        ], [
         ]);
 
         $this->editingStudent->update([
@@ -119,6 +125,7 @@ new #[Title('Students')] class extends Component {
             'contact_number' => $this->contact_number,
             'address' => $this->address,
             'grade_id' => $this->grade_id,
+            'is_advancing' => $this->isAdvancing,
             'updated_by' => Auth::id(),
             'updated_at' => now(),
         ]);
@@ -171,6 +178,7 @@ new #[Title('Students')] class extends Component {
             'address' => $this->address,
             'grade_id' => $this->grade_id,
             'is_deleted' => false,
+            'is_advancing' => true, 
             'created_by' => Auth::id(),
             'created_at' => now(),
         ]);
@@ -384,6 +392,7 @@ new #[Title('Students')] class extends Component {
                 <div><strong>Contact:</strong> {{ $viewingStudent?->contact_number }}</div>
                 <div><strong>Grade:</strong> {{ $viewingStudent?->grade->name ?? '' }}</div>
                 <div class="col-span-2"><strong>Address:</strong> {{ $viewingStudent?->address }}</div>
+                <div><strong>Will advance to next grade?</strong>{{ $viewingStudent?->is_advancing ? 'Yes' : 'No' }}</div>
             </div>
 
             <div class="flex justify-end">
@@ -431,6 +440,7 @@ new #[Title('Students')] class extends Component {
 
                 <flux:textarea label="Address" wire:model="address" />
 
+                <flux:checkbox label="Is advancing to next grade?" wire:model="isAdvancing" />
                 <div class="flex">
                     <flux:spacer />
                     <flux:button type="submit" variant="primary">Update Student</flux:button>

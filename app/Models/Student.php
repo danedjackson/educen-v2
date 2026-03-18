@@ -20,6 +20,7 @@ class Student extends Model
         'email',
         'grade_id',
         'is_deleted',
+        'is_advancing',
     ];
 
     /**
@@ -47,7 +48,7 @@ class Student extends Model
         return $this->hasMany(Score::class);
     }
 
-    public function getFullNameAttribute()
+    public function fullName()
     {
         return $this->firstname . ' ' . ($this->middlename ? $this->middlename . ' ' : '') . $this->lastname;
     }
