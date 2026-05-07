@@ -38,6 +38,11 @@ class Student extends Model
         return $this->dob->age;
     }
 
+    public function getFormattedDobAttribute()
+    {
+        return $this->dob ? $this->dob->format('Y-m-d') : null;
+    }
+
     public function grade()
     {
         return $this->belongsTo(Grade::class);
@@ -48,7 +53,7 @@ class Student extends Model
         return $this->hasMany(Score::class);
     }
 
-    public function fullName()
+    public function getFullNameAttribute()
     {
         return $this->firstname . ' ' . ($this->middlename ? $this->middlename . ' ' : '') . $this->lastname;
     }

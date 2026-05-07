@@ -94,7 +94,7 @@ new #[Title('Students')] class extends Component {
         $this->middlename = $student->middlename;
         $this->lastname = $student->lastname;
         $this->email = $student->email;
-        $this->dob = $student->dob;
+        $this->dob = $student->formatted_dob;
         $this->contact_number = $student->contact_number;
         $this->address = $student->address;
         $this->grade_id = $student->grade_id;

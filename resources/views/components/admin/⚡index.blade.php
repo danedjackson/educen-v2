@@ -116,7 +116,7 @@ new #[Title("Administration Panel")] class extends Component
             // Create a scrollable list or table for the alert
             $studentList = $nonAdvancing->map(function ($student) {
                 
-                return "<li><b>{$student->fullName()}</b> (Grade {$student->grade->name})</li>";
+                return "<li><b>{$student->full_name}</b> (Grade {$student->grade->name})</li>";
             })->implode('');
 
             $htmlContent = "
