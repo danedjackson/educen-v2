@@ -10,6 +10,9 @@ class Student extends Model
 {
     use HasFactory, HasUlids;
 
+    public $incrementing = false;
+    protected $keyType = 'string';
+
     protected $fillable = [
         'firstname',
         'middlename',

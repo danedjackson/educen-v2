@@ -77,10 +77,10 @@ new #[Title("Scores")] class extends Component
         return $query->paginate($this->perPage);
     }
 
-    public function showScores(Student $student)
+    public function showScores($studentId)
     {
-        // eager load relations so the modal can access them without another query
-        $this->selectedStudent = $student->load(['scores.subject', 'scores.teacher', 'scores.assignmentType']);
+        // Manually fetching the student avoids 404s caused by implicit model binding resolution failures
+        $this->selectedStudent = Student::findOrFail($studentId)->load(['scores.subject', 'scores.teacher', 'scores.assignmentType']);
         // reset any previous subject selection when opening for a new student
         $this->selectedSubject = null;
 
@@ -311,9 +311,9 @@ new #[Title("Scores")] class extends Component
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         @forelse ($this->students as $student)
             <div
+                wire:key="student-{{ $student->id }}"
                 wire:click="showScores('{{ $student->id }}')"
                 class="p-4 border rounded-lg shadow-sm hover:shadow-md cursor-pointer transition"
-                :key="$student->id"
             >
                 <div class="font-medium text-lg">{{ $student->full_name }}</div>
                 <div class="text-sm text-zinc-500">Grade {{ $student->grade?->name }}</div>
@@ -329,7 +329,6 @@ new #[Title("Scores")] class extends Component
     <div class="mt-6">
         {{ $this->students->links() }}
     </div>
-    <flux:pagination :paginator="$this->students" />
 
     {{-- Modal showing scores for selected student --}}
     <flux:modal name="view-scores-modal" class="md:max-w-5xl w-full">
