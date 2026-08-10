@@ -74,7 +74,10 @@ new #[Title("Scores")] class extends Component
             });
         }
 
-        return $query->paginate($this->perPage);
+        return $query
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->paginate($this->perPage);
     }
 
     public function showScores($studentId)

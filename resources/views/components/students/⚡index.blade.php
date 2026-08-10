@@ -74,7 +74,10 @@ new #[Title('Students')] class extends Component {
         }
 
         // 3. Eager Loading (Critical for performance to avoid N+1)
-        return $query->with('grade')->paginate($this->perPage);
+        return $query->with('grade')
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->paginate($this->perPage);
     }
 
     // Function that runs before the Add Student Modal is shown to reset the form state
