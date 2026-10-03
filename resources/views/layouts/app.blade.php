@@ -34,7 +34,7 @@
                 <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard*')" icon="home">Dashboard</x-nav-link>
 
                 @can('manage teachers')
-                    <x-nav-link :href="route('teachers')" :active="request()->routeIs('teachers*')" icon="user">Teachers</x-nav-link>
+                    <x-nav-link :href="route('teachers.index')" :active="request()->routeIs('teachers*')" icon="user">Teachers</x-nav-link>
                 @endcan
 
                 @can('manage students')

@@ -310,23 +310,43 @@ new #[Title("Scores")] class extends Component
         </div>
     </div>
 
-    {{-- Student cards grid --}}
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        @forelse ($this->students as $student)
-            <div
-                wire:key="student-{{ $student->id }}"
-                wire:click="showScores('{{ $student->id }}')"
-                class="p-4 border rounded-lg shadow-sm hover:shadow-md cursor-pointer transition"
-            >
-                <div class="font-medium text-lg">{{ $student->full_name }}</div>
-                <div class="text-sm text-zinc-500">Grade {{ $student->grade?->name }}</div>
-            </div>
-        @empty
-            <div class="col-span-full text-center py-12 text-zinc-400 italic">
-                No students found.
-            </div>
-        @endforelse
-    </div>
+    {{-- Student table --}}
+    <flux:table>
+        <flux:table.columns sticky>
+            <flux:table.column>Student</flux:table.column>
+            <flux:table.column>Grade</flux:table.column>
+            <flux:table.column align="center">Actions</flux:table.column>
+        </flux:table.columns>
+
+        <flux:table.rows>
+            @forelse ($this->students as $student)
+                <flux:table.row
+                    :key="$student->id"
+                    wire:click="showScores('{{ $student->id }}')"
+                    class="cursor-pointer hover:bg-zinc-50/80"
+                >
+                    <flux:table.cell variant="strong">{{ $student->full_name }}</flux:table.cell>
+                    <flux:table.cell>Grade {{ $student->grade?->name }}</flux:table.cell>
+                    <flux:table.cell align="center">
+                        <flux:button
+                            icon="eye"
+                            size="sm"
+                            variant="ghost"
+                            wire:click.stop="showScores('{{ $student->id }}')"
+                        >
+                            View Scores
+                        </flux:button>
+                    </flux:table.cell>
+                </flux:table.row>
+            @empty
+                <flux:table.row>
+                    <flux:table.cell colspan="3" align="center" class="py-12 text-zinc-400 italic">
+                        No students found.
+                    </flux:table.cell>
+                </flux:table.row>
+            @endforelse
+        </flux:table.rows>
+    </flux:table>
 
     {{-- Pagination controls --}}
     <div class="mt-6">

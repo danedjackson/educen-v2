@@ -11,12 +11,12 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 use App\Models\Grade;
-
+use Illuminate\Auth\Passwords\CanResetPassword;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable, HasUlids, HasRoles;
+    use HasFactory, Notifiable, TwoFactorAuthenticatable, HasUlids, HasRoles, CanResetPassword;
     /**
      * The primary key type and behavior.
      */

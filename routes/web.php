@@ -13,7 +13,7 @@ Route::get('/awaiting-confirmation', function () {
 Route::middleware(['auth', 'verified', 'confirmed'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
     Route::livewire('/students', 'students.index')->name('students.index');
-    Route::view('teachers', 'teachers')->name('teachers');
+    Route::livewire('/teachers', 'teachers.index')->name('teachers.index');
     Route::view('grades', 'grades')->name('grades');
     Route::livewire('/scores', 'scores.index')->name('scores.index');
     Route::livewire('/admin', 'admin.index')->name('admin');
