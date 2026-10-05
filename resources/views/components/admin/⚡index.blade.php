@@ -154,6 +154,7 @@ new #[Title("Administration Panel")] class extends Component
             ->timer(null)
             ->show();
     }
+    
     public function advanceSchoolYear()
     {
         $students = Student::where(['is_deleted' => false, 'is_advancing' => true]);

@@ -13,10 +13,13 @@ Route::get('/awaiting-confirmation', function () {
 Route::middleware(['auth', 'verified', 'confirmed'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
     Route::livewire('/students', 'students.index')->name('students.index');
-    Route::livewire('/teachers', 'teachers.index')->name('teachers.index');
-    Route::view('grades', 'grades')->name('grades');
     Route::livewire('/scores', 'scores.index')->name('scores.index');
-    Route::livewire('/admin', 'admin.index')->name('admin');
+
+    Route::middleware('role:admin')->group(function () {
+        Route::livewire('/teachers', 'teachers.index')->name('teachers.index');
+        Route::livewire('/grades', 'grades.index')->name('grades');
+        Route::livewire('/admin', 'admin.index')->name('admin');
+    });
 });
 
 require __DIR__.'/settings.php';
