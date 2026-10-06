@@ -46,7 +46,11 @@
                 @endcan
 
                 @if(auth()->user()->hasAnyRole(['teacher', 'admin']))
-                    <x-nav-link :href="route('lesson-plans.index')" :active="request()->routeIs('lesson-plans*')" icon="document-text">Lesson Plans</x-nav-link>
+                    <x-nav-link
+                        :href="route(auth()->user()->hasRole('admin') ? 'lesson-plans.review' : 'lesson-plans.index')"
+                        :active="request()->routeIs('lesson-plans*')"
+                        icon="document-text"
+                    >Lesson Plans</x-nav-link>
                 @endif
 
                 @can('manage grades')

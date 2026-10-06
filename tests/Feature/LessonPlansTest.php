@@ -37,8 +37,12 @@ test('teachers can upload docx lesson plans and see their status', function () {
         ->assertOk()
         ->assertSee('Lesson Plans');
 
+    $this->get(route('lesson-plans.review'))->assertForbidden();
+
     Livewire::actingAs($teacher)
         ->test('lesson-plans.index')
+        ->assertSee('Your lesson plans')
+        ->assertDontSee('Lesson plans for review')
         ->set('title', 'Fractions')
         ->set('document', fakeDocx())
         ->call('uploadPlan')
@@ -87,9 +91,15 @@ test('admins can upload a revised document and mark a lesson plan done', functio
         'original_filename' => 'original.docx',
     ]);
 
+    $this->actingAs($admin)
+        ->get(route('lesson-plans.review'))
+        ->assertOk();
+
     $adminPlans = Livewire::actingAs($admin)
-        ->test('lesson-plans.index')
+        ->test('lesson-plans.review')
         ->assertSee('Fractions')
+        ->assertSee('Lesson plans for review')
+        ->assertDontSee('Upload a lesson plan')
         ->assertDontSee(route('lesson-plans.download', [$plan->id, 'current']));
 
     $adminPlans
@@ -114,6 +124,12 @@ test('admins can upload a revised document and mark a lesson plan done', functio
     $this->actingAs($teacher)
         ->get(route('lesson-plans.download', [$plan->id, 'current']))
         ->assertDownload('fractions-revised.docx');
+});
+
+test('administrators do not have access to the teacher submission page', function () {
+    $this->actingAs(lessonPlanUserWithRole('admin'))
+        ->get(route('lesson-plans.index'))
+        ->assertForbidden();
 });
 
 test('teachers can download their own lesson plans but not another teachers plans', function () {
