@@ -45,6 +45,10 @@
                     <x-nav-link :href="route('scores.index')" :active="request()->routeIs('scores*')" icon="academic-cap">Scores</x-nav-link>
                 @endcan
 
+                @if(auth()->user()->hasAnyRole(['teacher', 'admin']))
+                    <x-nav-link :href="route('lesson-plans.index')" :active="request()->routeIs('lesson-plans*')" icon="document-text">Lesson Plans</x-nav-link>
+                @endif
+
                 @can('manage grades')
                     <x-nav-link :href="route('grades')" :active="request()->routeIs('grades*')" icon="numbered-list">Grades</x-nav-link>
                 @endcan

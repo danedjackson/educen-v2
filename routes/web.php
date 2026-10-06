@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\LessonPlanDownloadController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -14,6 +15,12 @@ Route::middleware(['auth', 'verified', 'confirmed'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
     Route::livewire('/students', 'students.index')->name('students.index');
     Route::livewire('/scores', 'scores.index')->name('scores.index');
+
+    Route::middleware('role:teacher|admin')->group(function () {
+        Route::livewire('/lesson-plans', 'lesson-plans.index')->name('lesson-plans.index');
+        Route::get('/lesson-plans/{lessonPlan}/download/{version}', [LessonPlanDownloadController::class, '__invoke'])
+            ->name('lesson-plans.download');
+    });
 
     Route::middleware('role:admin')->group(function () {
         Route::livewire('/teachers', 'teachers.index')->name('teachers.index');
