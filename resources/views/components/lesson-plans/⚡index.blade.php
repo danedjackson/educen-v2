@@ -5,6 +5,7 @@ use App\Models\User;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Jantinnerezo\LivewireAlert\Facades\LivewireAlert;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -35,7 +36,8 @@ new #[Title('Lesson Plans')] class extends Component
         $this->perPage = config('app.page_size', 12);
     }
 
-    public function getPlansProperty()
+    #[Computed]
+    public function plans()
     {
         return LessonPlan::query()
             ->where('teacher_id', $this->user()->ulid)
